@@ -5,7 +5,7 @@ class project.
 
 - **Token:** TemiToken (`TMT`), 1,000,000,000 fixed supply, 18 decimals
 - **Network:** Ethereum Sepolia testnet (chain id `11155111`)
-- **Contract address:** _filled in after deployment_
+- **Contract address:** [`0xc80AAD29a6De0bb8b7A8caa3f1103C8ecF6A71E0`](https://sepolia.etherscan.io/address/0xc80AAD29a6De0bb8b7A8caa3f1103C8ecF6A71E0#code) (verified on Etherscan)
 - **Live dapp:** _filled in after deployment_
 
 TMT is a testnet token. It has no monetary value and cannot be bought or sold.
