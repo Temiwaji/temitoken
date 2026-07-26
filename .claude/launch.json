@@ -6,6 +6,13 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "dapp"],
       "port": 3000
+    },
+    {
+      "name": "spinner",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "spinner"],
+      "port": 5173,
+      "autoPort": true
     }
   ]
 }
