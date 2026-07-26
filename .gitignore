@@ -1,0 +1,33 @@
+# Secrets - never commit these
+.env
+.env.local
+.env*.local
+*.pem
+*.key
+
+# Dependencies
+node_modules/
+
+# Hardhat build output
+contract/artifacts/
+contract/cache/
+contract/typechain-types/
+
+# Next.js build output
+dapp/.next/
+dapp/out/
+dapp/build/
+dapp/.vercel/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local machine-specific tooling settings
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
