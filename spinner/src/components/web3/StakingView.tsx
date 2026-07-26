@@ -16,6 +16,7 @@ import { useOnChainRound } from "../../state/useOnChainRound";
 import { pickRandom } from "../../lib/random";
 import { STUDENTS, fullName } from "../../data/roster";
 import { SPINNER_CHAIN } from "../../lib/config";
+import { formatAmount } from "../../lib/format";
 import type { HandState, Phase, Student, StudentTally } from "../../types";
 
 const EMPTY_TALLY: Record<number, StudentTally> = Object.fromEntries(
@@ -67,6 +68,48 @@ export function StakingView() {
   const myHandStatus = round.handStatusById[round.myStudentId] ?? "None";
   const needsRefund = round.roundState === "Closed" && myHandStatus === "Raised";
 
+  // Round status is public chain data - readable by anyone, connected or not -
+  // so this recap is not gated behind a wallet connection. Only the *acting*
+  // buttons (stake, lock, spin, resolve) need a signer.
+  const wrongIds = STUDENTS.filter((s) => round.handStatusById[s.id] === "Wrong").map((s) => s.id);
+  const correctStudent = STUDENTS.find((s) => round.handStatusById[s.id] === "Correct");
+  const wrongNames = wrongIds
+    .map((id) => STUDENTS.find((s) => s.id === id))
+    .filter((s): s is Student => Boolean(s))
+    .map(fullName);
+
+  function renderSpinnerStatus() {
+    if (round.roundState === "Inactive") {
+      return <p className="hint">No question open yet. Waiting for the teacher to start one.</p>;
+    }
+    if (round.roundState === "Open") {
+      return (
+        <p className="hint">
+          {round.pool.length} hand{round.pool.length === 1 ? "" : "s"} raised so far - stake{" "}
+          {formatAmount(round.stakeAmount)} TMT to join. Waiting for the teacher to lock the pool.
+        </p>
+      );
+    }
+    if (round.roundState === "Locked") {
+      return (
+        <p className="hint">
+          {round.pool.length} student{round.pool.length === 1 ? "" : "s"} locked in
+          {wrongNames.length > 0 ? ` - ruled out so far: ${wrongNames.join(", ")}` : ""}. Waiting
+          for the teacher to spin.
+        </p>
+      );
+    }
+    if (correctStudent) {
+      return (
+        <p className="hint">
+          <strong>{fullName(correctStudent)}</strong> got it right and earned{" "}
+          {formatAmount(round.rewardAmount)} TMT.
+        </p>
+      );
+    }
+    return <p className="hint">Question closed.</p>;
+  }
+
   return (
     <main>
       <Header tally={EMPTY_TALLY} />
@@ -90,6 +133,11 @@ export function StakingView() {
           </div>
         </div>
       )}
+
+      <section className="card">
+        <h2>Spinner</h2>
+        {renderSpinnerStatus()}
+      </section>
 
       <StudentGrid
         students={STUDENTS}
