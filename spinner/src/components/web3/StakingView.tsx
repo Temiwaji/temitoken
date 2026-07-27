@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, useSwitchChain } from "wagmi";
+import { erc20Abi } from "viem";
+import { useAccount, useReadContract, useSwitchChain } from "wagmi";
 import { motion } from "framer-motion";
 
 import { Header } from "../Header";
@@ -15,8 +16,8 @@ import { RefundClaim } from "./RefundClaim";
 import { useOnChainRound } from "../../state/useOnChainRound";
 import { pickRandom } from "../../lib/random";
 import { STUDENTS, fullName } from "../../data/roster";
-import { SPINNER_CHAIN } from "../../lib/config";
-import { formatAmount } from "../../lib/format";
+import { SPINNER_CHAIN, STAKING_ADDRESS, TOKEN_ADDRESS, explorerUrl } from "../../lib/config";
+import { formatAmount, shortenAddress } from "../../lib/format";
 import type { HandState, Phase, Student, StudentTally } from "../../types";
 
 const EMPTY_TALLY: Record<number, StudentTally> = Object.fromEntries(
@@ -37,9 +38,17 @@ function toHandState(status: string): HandState {
 }
 
 export function StakingView() {
-  const { isConnected, chainId } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
   const round = useOnChainRound();
+
+  const { data: myBalance } = useReadContract({
+    address: TOKEN_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: Boolean(address), refetchInterval: 4000 },
+  });
 
   const [uiPhase, setUiPhase] = useState<"idle" | "spinning" | "result">("idle");
   const [spinWinner, setSpinWinner] = useState<Student | null>(null);
@@ -110,12 +119,35 @@ export function StakingView() {
     return <p className="hint">Question closed.</p>;
   }
 
+  // A visible role indicator plus the raw numbers behind the game - all public
+  // chain data, shown so nobody has to guess what "connect wallet" actually did
+  // or take the token economics on faith.
+  function renderIdentityLine() {
+    if (!isConnected) return null;
+    if (round.isOwner) {
+      return <p className="hint center">Connected as the teacher.</p>;
+    }
+    if (round.myStudentId > 0) {
+      const me = STUDENTS.find((s) => s.id === round.myStudentId);
+      return (
+        <p className="hint center">
+          Connected as <strong>{me ? fullName(me) : "a student"}</strong>
+        </p>
+      );
+    }
+    return <p className="hint center">Connected - no name claimed yet.</p>;
+  }
+
   return (
     <main>
       <Header tally={EMPTY_TALLY} />
 
       <section className="card center">
         <ConnectButton showBalance={false} />
+        {renderIdentityLine()}
+        {isConnected && myBalance !== undefined && (
+          <p className="hint center">Your balance: {formatAmount(myBalance)} TMT</p>
+        )}
       </section>
 
       {isConnected && chainId !== SPINNER_CHAIN.id && (
@@ -137,6 +169,13 @@ export function StakingView() {
       <section className="card">
         <h2>Spinner</h2>
         {renderSpinnerStatus()}
+        <p className="hint" style={{ marginTop: 10 }}>
+          Reward pool: {formatAmount(round.freeBalance)} TMT ·{" "}
+          <a href={explorerUrl(`address/${STAKING_ADDRESS}`)} target="_blank" rel="noreferrer">
+            {shortenAddress(STAKING_ADDRESS)}
+          </a>{" "}
+          on Sepolia
+        </p>
       </section>
 
       <StudentGrid
