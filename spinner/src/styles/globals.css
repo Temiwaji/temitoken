@@ -337,6 +337,11 @@ select:focus {
   margin-bottom: 14px;
 }
 
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+}
+
 button.danger {
   background: rgba(248, 113, 113, 0.15);
   color: var(--danger);

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { parseUnits, type BaseError } from "viem";
 import { useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { STAKING_ADDRESS } from "../../lib/config";
+import { STAKING_ADDRESS, explorerUrl } from "../../lib/config";
 import { stakingAbi } from "../../lib/stakingAbi";
 import { formatAmount } from "../../lib/format";
 
@@ -52,7 +52,22 @@ export function RoundConfigForm({ freeBalance, onOpened }: Props) {
         <label htmlFor="penalty">Penalty for a wrong answer (TMT, capped at stake)</label>
         <input id="penalty" inputMode="decimal" value={penalty} onChange={(e) => setPenalty(e.target.value)} />
       </div>
-      <p className="hint">Reward pool available: {formatAmount(freeBalance, 18, 0)} TMT</p>
+      <div className="field">
+        <label htmlFor="stakingContract">Staking contract</label>
+        <input
+          id="stakingContract"
+          className="mono"
+          readOnly
+          value={STAKING_ADDRESS}
+          onFocus={(e) => e.target.select()}
+        />
+      </div>
+      <p className="hint">
+        Reward pool available: {formatAmount(freeBalance, 18, 0)} TMT ·{" "}
+        <a href={explorerUrl(`address/${STAKING_ADDRESS}`)} target="_blank" rel="noreferrer">
+          view on Etherscan
+        </a>
+      </p>
       <button type="button" className="primary" disabled={!valid || isPending || isConfirming} onClick={handleOpen}>
         {isPending ? "Confirm in your wallet..." : isConfirming ? "Opening..." : "Open question"}
       </button>

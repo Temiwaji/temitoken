@@ -53,6 +53,13 @@ export function StakingView() {
   const [uiPhase, setUiPhase] = useState<"idle" | "spinning" | "result">("idle");
   const [spinWinner, setSpinWinner] = useState<Student | null>(null);
 
+  // Anyone can preview either panel - defaults to whichever role the connected
+  // wallet actually has, but a manual pick always wins so a visitor (or a
+  // grader) can look at both without needing to hold the teacher wallet.
+  const [manualTab, setManualTab] = useState<"teacher" | "student" | null>(null);
+  const viewTab: "teacher" | "student" =
+    manualTab ?? (round.myStudentId > 0 && !round.isOwner ? "student" : "teacher");
+
   const handState: Record<number, HandState> = Object.fromEntries(
     STUDENTS.map((s) => [s.id, toHandState(round.handStatusById[s.id])])
   );
@@ -188,8 +195,31 @@ export function StakingView() {
 
       {isConnected && chainId === SPINNER_CHAIN.id && (
         <>
-          {round.isOwner && (
+          <div className="controls">
+            <button
+              type="button"
+              className={viewTab === "teacher" ? "primary" : "ghost"}
+              onClick={() => setManualTab("teacher")}
+            >
+              Teacher view
+            </button>
+            <button
+              type="button"
+              className={viewTab === "student" ? "primary" : "ghost"}
+              onClick={() => setManualTab("student")}
+            >
+              Student view
+            </button>
+          </div>
+
+          {viewTab === "teacher" && (
             <>
+              {!round.isOwner && (
+                <p className="hint center">
+                  Previewing the teacher panel - only the teacher's own wallet can actually
+                  submit these.
+                </p>
+              )}
               {(round.roundState === "Inactive" || round.roundState === "Closed") && (
                 <RoundConfigForm freeBalance={round.freeBalance} onOpened={round.refetchAll} />
               )}
@@ -206,26 +236,36 @@ export function StakingView() {
             </>
           )}
 
-          {!round.isOwner && round.myStudentId === 0 && round.roundState !== "Inactive" && (
-            <ClaimIdentityPanel onClaimed={round.refetchAll} />
-          )}
-
-          {round.myStudentId > 0 && uiPhase === "idle" && (
-            <section className="card center">
-              <p className="hint">
-                You are <strong>{fullName(STUDENTS.find((s) => s.id === round.myStudentId)!)}</strong>
-              </p>
-              {needsRefund ? (
-                <RefundClaim roundId={round.roundId} onClaimed={round.refetchAll} />
-              ) : (
-                <StakeButton
-                  roundState={round.roundState}
-                  stakeAmount={round.stakeAmount}
-                  myHandStatus={myHandStatus}
-                  onChanged={round.refetchAll}
-                />
+          {viewTab === "student" && (
+            <>
+              {round.myStudentId === 0 && round.roundState !== "Inactive" && (
+                <ClaimIdentityPanel onClaimed={round.refetchAll} />
               )}
-            </section>
+              {round.myStudentId === 0 && round.roundState === "Inactive" && (
+                <p className="hint center">
+                  No question open yet - come back once the teacher starts one to pick your name.
+                </p>
+              )}
+
+              {round.myStudentId > 0 && uiPhase === "idle" && (
+                <section className="card center">
+                  <p className="hint">
+                    You are{" "}
+                    <strong>{fullName(STUDENTS.find((s) => s.id === round.myStudentId)!)}</strong>
+                  </p>
+                  {needsRefund ? (
+                    <RefundClaim roundId={round.roundId} onClaimed={round.refetchAll} />
+                  ) : (
+                    <StakeButton
+                      roundState={round.roundState}
+                      stakeAmount={round.stakeAmount}
+                      myHandStatus={myHandStatus}
+                      onChanged={round.refetchAll}
+                    />
+                  )}
+                </section>
+              )}
+            </>
           )}
         </>
       )}
@@ -238,7 +278,7 @@ export function StakingView() {
         />
       )}
 
-      {uiPhase === "result" && spinWinner && round.isOwner && (
+      {uiPhase === "result" && spinWinner && (
         <div className="result-banner">
           <motion.span
             className="winner-name"
@@ -247,7 +287,19 @@ export function StakingView() {
           >
             {fullName(spinWinner)}
           </motion.span>
-          <ResolveSelected studentId={spinWinner.id} onResolved={handleResolved} />
+          {round.isOwner ? (
+            <ResolveSelected studentId={spinWinner.id} onResolved={handleResolved} />
+          ) : (
+            <>
+              <p className="hint center">
+                Previewing the spin - only the teacher's own wallet can mark an answer correct or
+                wrong.
+              </p>
+              <button type="button" className="ghost" onClick={() => setUiPhase("idle")}>
+                Back
+              </button>
+            </>
+          )}
         </div>
       )}
     </main>
