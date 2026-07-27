@@ -88,13 +88,29 @@ export function StakingView() {
   // so this recap is not gated behind a wallet connection. Only the *acting*
   // buttons (stake, lock, spin, resolve) need a signer.
   const wrongIds = STUDENTS.filter((s) => round.handStatusById[s.id] === "Wrong").map((s) => s.id);
-  const correctStudent = STUDENTS.find((s) => round.handStatusById[s.id] === "Correct");
   const wrongNames = wrongIds
     .map((id) => STUDENTS.find((s) => s.id === id))
     .filter((s): s is Student => Boolean(s))
     .map(fullName);
 
-  function renderSpinnerStatus() {
+  const lastCorrectStudent = round.lastCorrect
+    ? STUDENTS.find((s) => s.id === round.lastCorrect!.studentId)
+    : null;
+
+  // The most recent correct answer stays visible regardless of what the live
+  // round is doing right now - opening a new question shouldn't erase proof
+  // that the last one worked.
+  function renderLastResult() {
+    if (!lastCorrectStudent || !round.lastCorrect) return null;
+    return (
+      <p className="hint">
+        <strong>{fullName(lastCorrectStudent)}</strong> got it right and earned{" "}
+        {formatAmount(round.lastCorrect.rewardAmount)} TMT.
+      </p>
+    );
+  }
+
+  function renderLiveStatus() {
     if (round.roundState === "Inactive") {
       return <p className="hint">No question open yet. Waiting for the teacher to start one.</p>;
     }
@@ -115,15 +131,7 @@ export function StakingView() {
         </p>
       );
     }
-    if (correctStudent) {
-      return (
-        <p className="hint">
-          <strong>{fullName(correctStudent)}</strong> got it right and earned{" "}
-          {formatAmount(round.rewardAmount)} TMT.
-        </p>
-      );
-    }
-    return <p className="hint">Question closed.</p>;
+    return null;
   }
 
   // A visible role indicator plus the raw numbers behind the game - all public
@@ -175,7 +183,8 @@ export function StakingView() {
 
       <section className="card">
         <h2>Spinner</h2>
-        {renderSpinnerStatus()}
+        {renderLastResult()}
+        {renderLiveStatus()}
         <p className="hint" style={{ marginTop: 10 }}>
           Reward pool: {formatAmount(round.freeBalance)} TMT ·{" "}
           <a href={explorerUrl(`address/${STAKING_ADDRESS}`)} target="_blank" rel="noreferrer">

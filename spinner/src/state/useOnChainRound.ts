@@ -75,6 +75,56 @@ export function useOnChainRound() {
     return map;
   }, [handStatusResults]);
 
+  // A newly opened round pushes the "who answered correctly" recap out of
+  // view even though it's still true and still valuable to show. Scan a
+  // bounded window of recent rounds so the most recent correct answer stays
+  // visible on the page regardless of what the live round is doing right now.
+  const HISTORY_WINDOW = 5n;
+  const historyRoundIds = useMemo(() => {
+    if (roundId === undefined || roundId === 0n) return [];
+    const oldest = roundId > HISTORY_WINDOW ? roundId - HISTORY_WINDOW + 1n : 1n;
+    const ids: bigint[] = [];
+    for (let r = roundId; r >= oldest; r--) ids.push(r);
+    return ids;
+  }, [roundId]);
+
+  const historyHandStatusCalls = useMemo(
+    () =>
+      historyRoundIds.flatMap((rId) =>
+        STUDENTS.map((s) => ({
+          ...staking,
+          functionName: "handStatus" as const,
+          args: [rId, BigInt(s.id)] as const,
+        }))
+      ),
+    [historyRoundIds]
+  );
+
+  const { data: historyResults, refetch: refetchHistory } = useReadContracts({
+    contracts: historyHandStatusCalls,
+    query: { enabled: historyHandStatusCalls.length > 0, refetchInterval: POLL_INTERVAL_MS },
+  });
+
+  const lastCorrect = useMemo(() => {
+    if (!historyResults) return null;
+    for (let r = 0; r < historyRoundIds.length; r++) {
+      for (let s = 0; s < STUDENTS.length; s++) {
+        const raw = historyResults[r * STUDENTS.length + s]?.result as number | undefined;
+        if (raw === 3) {
+          return { roundId: historyRoundIds[r], studentId: STUDENTS[s].id };
+        }
+      }
+    }
+    return null;
+  }, [historyResults, historyRoundIds]);
+
+  const { data: lastCorrectRound } = useReadContract({
+    ...staking,
+    functionName: "rounds",
+    args: lastCorrect ? [lastCorrect.roundId] : undefined,
+    query: { enabled: Boolean(lastCorrect) },
+  });
+
   function refetchAll() {
     refetchRoundId();
     refetchRound();
@@ -82,6 +132,7 @@ export function useOnChainRound() {
     refetchMyId();
     refetchFreeBalance();
     refetchHandStatus();
+    refetchHistory();
   }
 
   return {
@@ -96,6 +147,9 @@ export function useOnChainRound() {
     isOwner: Boolean(address && owner && address.toLowerCase() === owner.toLowerCase()),
     myStudentId: Number(myStudentId ?? 0n),
     freeBalance: freeBalance ?? 0n,
+    lastCorrect: lastCorrect
+      ? { studentId: lastCorrect.studentId, rewardAmount: lastCorrectRound?.[2] ?? 0n }
+      : null,
     refetchAll,
   };
 }
